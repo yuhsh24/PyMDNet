@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import tensorflow as tf
 import numpy as np
 from models import MDNet
@@ -8,54 +9,57 @@ import argparse
 
 
 class Config(object):
-  momentum = 0.9
-  weight_decay = 0.0005
-  lr_rate = 0.0001
-  lr_rates = {'conv': 1.0, 'bias': 2.0, 'fc6-conv': 10.0, 'fc6-bias': 20.0}
+    momentum = 0.9  # 冲量
+    weight_decay = 0.0005  # 权重衰减
+    lr_rate = 0.0001  # 基础学习率
+    lr_rates = {'conv': 1.0, 'bias': 2.0, 'fc6-conv': 10.0, 'fc6-bias': 20.0}  # 额外学习率
 
-  batch_frames = 8
-  batch_size = 128
-  batch_pos = 32
-  batch_neg = 96
-  num_cycle = 100
+    batch_frames = 8  #
+    batch_size = 128  # 总体样本的数目
+    batch_pos = 32  # 正样本的数目
+    batch_neg = 96  # 负样本的数目
+    num_cycle = 100  #
 
-  posPerFrame = 50
-  negPerFrame = 200
-  scale_factor = 1.05
-  input_size = 107
+    posPerFrame = 50
+    negPerFrame = 200
+    scale_factor = 1.05
+    input_size = 107
 
-  pos_range = [0.7, 1]
-  neg_range = [0, 0.5]
+    pos_range = [0.7, 1]
+    neg_range = [0, 0.5]
 
-def pretrain_mdnet(datasets, init_model_path, result_dir, load_path=None, shuffle=True, norm=False, dropout=True, regularization=True):
-  config = Config()
 
-  # print parameters
-  print('shuffle', shuffle)
-  print('norm', norm)
-  print('dropout', dropout)
-  print('regularization', regularization)
-  print('init_model_path', init_model_path)
-  print('result_dir', result_dir)
+# 预训练mdnet模型
+def pretrain_mdnet(datasets, init_model_path, result_dir, load_path=None, shuffle=True,
+                   norm=False, dropout=True, regularization=True):
+    config = Config()  # 获取配置的参数
 
-  # create directory
-  if not os.path.exists(result_dir):
-    os.makedirs(result_dir)
+    # print parameters
+    print('shuffle', shuffle)  # 是否shuffle
+    print('norm', norm)  # 是否归一化
+    print('dropout', dropout)  # 是否使用dropout层
+    print('regularization', regularization)  # 是否使用正则化
+    print('init_model_path', init_model_path)  # 初始化网络的路径
+    print('result_dir', result_dir)  # 模型保存路径
 
-  # load sequences
-  train_data = reader.read_datasets(datasets)
-  K = len(train_data.data)
+    # create directory
+    if not os.path.exists(result_dir):
+        os.makedirs(result_dir)  # 创建模型保存路径的目录
 
-  # create session and saver
-  gpu_config = tf.ConfigProto(allow_soft_placement=True)
-  sess = tf.InteractiveSession(config=gpu_config)
+    # load sequences
+    train_data = reader.read_datasets(datasets)  # 获取训练数据
+    K = len(train_data.data)  # 获取数据集的视频数目
 
-  # load model, weights
-  model = MDNet(config)
-  model.build_trainer(K, config.batch_size, dropout=dropout, regularization=regularization)
-  tf.global_variables_initializer().run()
-  model.load(init_model_path,sess)
-  sess.run(model.lr_rate.assign(config.lr_rate))
+    # create session and saver
+    gpu_config = tf.ConfigProto(allow_soft_placement=True)  # tensorflow网络配置
+    sess = tf.InteractiveSession(config=gpu_config)  # 创建session
+
+    # load model, weights
+    model = MDNet(config)
+    model.build_trainer(K, config.batch_size, dropout=dropout, regularization=regularization)
+    tf.global_variables_initializer().run()
+    model.load(init_model_path,sess)
+    sess.run(model.lr_rate.assign(config.lr_rate))
 
   # create saver
   saver = tf.train.Saver([v for v in tf.global_variables() if 'fc6' not in v.name])
@@ -137,29 +141,31 @@ def pretrain_mdnet(datasets, init_model_path, result_dir, load_path=None, shuffl
     saver.save(sess, os.path.join(result_dir, 'model_e'+str(i)+'.ckpt'), global_step=i+1)
   train_loss_file.close()
 
+# 配置函数
 def get_params():
-  parser = argparse.ArgumentParser()
-  parser.add_argument('--no_shuffle', action='store_true', help='disable shuffling frames')
-  parser.add_argument('--norm', action='store_true', help='normalize input image')
-  parser.add_argument('--no_dropout', action='store_true', help='disable dropout')
-  parser.add_argument('--no_regularization', action='store_true', help='disable regularization')
-  parser.add_argument('--result_dir', help='places to store the pretrained model')
-  parser.add_argument('--dataset', choices=['otb', 'vot', 'otb_vot'], help='choose pretrained dataset: [vot/otb/otb_vot]')
-  parser.add_argument('--init_model_path', help='initial model path')
-  parser.add_argument('--load_path', default=None, help='initial model path')
-  return parser.parse_args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--no_shuffle', action='store_true', help='disable shuffling frames')  # 是否shuffle帧数
+    parser.add_argument('--norm', action='store_true', help='normalize input image')  # 是否对图像进行归一化
+    parser.add_argument('--no_dropout', action='store_true', help='disable dropout')  # 是否加入dropout层数
+    parser.add_argument('--no_regularization', action='store_true', help='disable regularization')  # 是否使用正则化
+    parser.add_argument('--result_dir', help='places to store the pretrained model')  # 保存模型的目录
+    parser.add_argument('--dataset', choices=['otb', 'vot', 'otb_vot'], help='choose pretrained dataset: [vot/otb/otb_vot]')  # 数据集选择
+    parser.add_argument('--init_model_path', help='initial model path')  # 初始化模型的地址
+    parser.add_argument('--load_path', default=None, help='initial model path')  # load path
+    return parser.parse_args()
 
+# 主函数
 def main():
-  params = get_params()
-  if params.dataset == 'otb':
-    datasets = ['otb']
-  elif params.dataset == 'vot':
-    datasets = ['vot2013', 'vot2014', 'vot2015']
-  elif params.dataset == 'otb_vot':
-    datasets = ['otb', 'vot2013', 'vot2014', 'vot2015']
-
-  pretrain_mdnet(datasets, load_path=params.load_path, init_model_path=params.init_model_path, result_dir=params.result_dir,
-                 shuffle=(not params.no_shuffle), norm=params.norm, dropout=(not params.no_dropout), regularization=(not params.no_regularization))
+    params = get_params()  # 获取配置
+    if params.dataset == 'otb':
+        datasets = ['otb']  # otb数据集
+    elif params.dataset == 'vot':
+        datasets = ['vot2013', 'vot2014', 'vot2015']  # vot数据集
+    elif params.dataset == 'otb_vot':
+        datasets = ['otb', 'vot2013', 'vot2014', 'vot2015']  # otb和vot数据集
+    #预训练mdnet函数
+    pretrain_mdnet(datasets, load_path=params.load_path, init_model_path=params.init_model_path, result_dir=params.result_dir,
+                   shuffle=(not params.no_shuffle), norm=params.norm, dropout=(not params.no_dropout), regularization=(not params.no_regularization))
 
 if __name__ == '__main__':
-  main()
+    main()
