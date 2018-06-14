@@ -55,91 +55,91 @@ def pretrain_mdnet(datasets, init_model_path, result_dir, load_path=None, shuffl
     sess = tf.InteractiveSession(config=gpu_config)  # 创建session
 
     # load model, weights
-    model = MDNet(config)
-    model.build_trainer(K, config.batch_size, dropout=dropout, regularization=regularization)
-    tf.global_variables_initializer().run()
-    model.load(init_model_path,sess)
-    sess.run(model.lr_rate.assign(config.lr_rate))
+    model = MDNet(config)  # 定义MDNet对象
+    model.build_trainer(K, config.batch_size, dropout=dropout, regularization=regularization)  # 创建trainer网络
+    tf.global_variables_initializer().run()  # 变量初始化
+    model.load(init_model_path,sess)  # load网络
+    sess.run(model.lr_rate.assign(config.lr_rate))  # 学习率赋值
 
-  # create saver
-  saver = tf.train.Saver([v for v in tf.global_variables() if 'fc6' not in v.name])
+    # create saver
+    saver = tf.train.Saver([v for v in tf.global_variables() if 'fc6' not in v.name])  # 除了第6层以外都保存
 
-  # restore from model
-  if load_path is not None:
-    saver.restore(sess, load_path)
+    # restore from model
+    if load_path is not None:
+        saver.restore(sess, load_path)  # 加载网络
 
-  # prepare roidb and frame list
-  train_loss_file = open(os.path.join(result_dir, 'train_loss.txt'), 'w')
-  n_frames = config.batch_frames*config.num_cycle
-  for i in range(config.num_cycle):
-    loss_total = 0
-    print('###### training cycle '+str(i)+'/'+str(config.num_cycle)+'...')    
+    # prepare roidb and frame list
+    train_loss_file = open(os.path.join(result_dir, 'train_loss.txt'), 'w')  # 写train_loss的文件
+    n_frames = config.batch_frames*config.num_cycle  # 一共使用的帧数
+    for i in range(config.num_cycle):
+        loss_total = 0  # loss清空
+        print('###### training cycle '+str(i)+'/'+str(config.num_cycle)+'...')  # 第几轮training
 
-    seq_i = 0
-    for seq, seq_data in train_data.data.iteritems():
-      print('### training video "'+seq+'"...')
-      seq_n_frames = len(seq_data.frames)
+        seq_i = 0  # 记录当前轮次使用的序列数目
+        for seq, seq_data in train_data.data.iteritems():
+            print('### training video "'+seq+'"...')  # 训练的视频名字
+            seq_n_frames = len(seq_data.frames)  #
     
-      ## prepare roidb
-      print('- preparing roidb...')
-      seq_data.rois = proc.seq2roidb(seq_data, config)
+            ## prepare roidb
+            print('- preparing roidb...')
+            seq_data.rois = proc.seq2roidb(seq_data, config)
 
-      ## prepare frame list
-      print('- shuffle frames...')
-      seq_data.frame_lists = []
-      while len(seq_data.frame_lists) < n_frames:
-        seq_data.frame_lists = np.r_[seq_data.frame_lists, np.random.permutation(seq_n_frames)]
-      seq_data.frame_lists = seq_data.frame_lists[:n_frames]
+            ## prepare frame list
+            print('- shuffle frames...')
+            seq_data.frame_lists = []
+            while len(seq_data.frame_lists) < n_frames:
+              seq_data.frame_lists = np.r_[seq_data.frame_lists, np.random.permutation(seq_n_frames)]
+            seq_data.frame_lists = seq_data.frame_lists[:n_frames]
 
-      ## start training
-      # extract batch_size frames
-      frame_inds = seq_data.frame_lists[config.batch_frames * i: config.batch_frames * (i+1)].astype(np.int)
+            ## start training
+            # extract batch_size frames
+            frame_inds = seq_data.frame_lists[config.batch_frames * i: config.batch_frames * (i+1)].astype(np.int)
 
-      # sample boxes
-      pos_boxes = np.concatenate([seq_data.rois[frame_ind].pos_boxes for frame_ind in frame_inds], axis=0)
-      neg_boxes = np.concatenate([seq_data.rois[frame_ind].neg_boxes for frame_ind in frame_inds], axis=0)
-      pos_inds = np.random.permutation(config.posPerFrame * config.batch_frames)[:config.batch_pos]
-      neg_inds = np.random.permutation(config.negPerFrame * config.batch_frames)[:config.batch_neg]
+            # sample boxes
+            pos_boxes = np.concatenate([seq_data.rois[frame_ind].pos_boxes for frame_ind in frame_inds], axis=0)
+            neg_boxes = np.concatenate([seq_data.rois[frame_ind].neg_boxes for frame_ind in frame_inds], axis=0)
+            pos_inds = np.random.permutation(config.posPerFrame * config.batch_frames)[:config.batch_pos]
+            neg_inds = np.random.permutation(config.negPerFrame * config.batch_frames)[:config.batch_neg]
       
-      # pack as boxes, paths
-      pos_boxes = pos_boxes[pos_inds]
-      neg_boxes = neg_boxes[neg_inds]
-      boxes = np.r_[pos_boxes, neg_boxes]
+            # pack as boxes, paths
+            pos_boxes = pos_boxes[pos_inds]
+            neg_boxes = neg_boxes[neg_inds]
+            boxes = np.r_[pos_boxes, neg_boxes]
 
-      box_relinds = np.r_[pos_inds // config.posPerFrame, neg_inds // config.negPerFrame]
-      paths = [seq_data.frames[ind] for ind in frame_inds[box_relinds]]
-      gts = np.repeat(np.identity(2), [config.batch_pos, config.batch_neg], axis=0)
-      patches = proc.load_patch(paths, boxes, norm=False)
+            box_relinds = np.r_[pos_inds // config.posPerFrame, neg_inds // config.negPerFrame]
+            paths = [seq_data.frames[ind] for ind in frame_inds[box_relinds]]
+            gts = np.repeat(np.identity(2), [config.batch_pos, config.batch_neg], axis=0)
+            patches = proc.load_patch(paths, boxes, norm=False)
 
-      # shuffle
-      if shuffle:
-        inds = np.random.permutation(config.batch_size)
-        patches = patches[inds]
-        gts = gts[inds]
+            # shuffle
+            if shuffle:
+              inds = np.random.permutation(config.batch_size)
+              patches = patches[inds]
+              gts = gts[inds]
 
-      # training
-      _, loss, score, weight, bias = sess.run([model.trainable[seq_i],
-                                               model.losses['loss-'+str(seq_i)],
-                                               model.layers['fc6-'+str(seq_i)],
-                                               model.weights['fc6-'+str(seq_i)],
-                                               model.biases['fc6-'+str(seq_i)]],
-                                               feed_dict={model.layers['input']: patches,
-                                                          model.layers['y-'+str(seq_i)]: gts})
-      print(seq_i)
-      print(score.reshape(-1, 2)[:5])
-      print(gts[:5])
-      print(np.mean(loss))
-      print(weight)
-      print(bias)
-      loss_total += np.mean(loss)
+            # training
+            _, loss, score, weight, bias = sess.run([model.trainable[seq_i],
+                                                     model.losses['loss-'+str(seq_i)],
+                                                     model.layers['fc6-'+str(seq_i)],
+                                                     model.weights['fc6-'+str(seq_i)],
+                                                     model.biases['fc6-'+str(seq_i)]],
+                                                     feed_dict={model.layers['input']: patches,
+                                                                model.layers['y-'+str(seq_i)]: gts})
+            print(seq_i)
+            print(score.reshape(-1, 2)[:5])
+            print(gts[:5])
+            print(np.mean(loss))
+            print(weight)
+            print(bias)
+            loss_total += np.mean(loss)
 
-      # update seq_i
-      seq_i += 1
+            # update seq_i
+            seq_i += 1
 
-    ## save the model
-    train_loss_file.write('Epoch '+str(i)+', Loss: '+str(np.mean(loss)))
-    saver.save(sess, os.path.join(result_dir, 'model_e'+str(i)+'.ckpt'), global_step=i+1)
-  train_loss_file.close()
+        ## save the model
+        train_loss_file.write('Epoch '+str(i)+', Loss: '+str(np.mean(loss)))
+        saver.save(sess, os.path.join(result_dir, 'model_e'+str(i)+'.ckpt'), global_step=i+1)
+    train_loss_file.close()
 
 # 配置函数
 def get_params():

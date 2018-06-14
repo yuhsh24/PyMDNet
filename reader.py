@@ -65,39 +65,39 @@ def read_dataset(dataset):
         # load sequences
         data.data = {}
         for seq in seqs:
-          print('loading...',dataset,seq)
-          if seq == 'Jogging-1' or seq == 'Jogging-2' or seq == 'Skating2-1' or seq == 'Skating2-2':
-            gt_path = os.path.join(dir_path,seq[:-2],'groundtruth_rect.'+seq[-1]+'.txt')
-            img_dir_path = os.path.join(dir_path,seq[:-2],'img')
-          elif seq == 'Human4':
-            gt_path = os.path.join(dir_path,seq,'groundtruth_rect.2.txt')
-            img_dir_path = os.path.join(dir_path,seq,'img')
-          else:
-            gt_path = os.path.join(dir_path,seq,'groundtruth_rect.txt')
-            img_dir_path = os.path.join(dir_path,seq,'img')
-          gt = pd.read_csv(gt_path, header=None, sep='[\s*\,*]+').as_matrix()
+            print('loading...', dataset, seq)  # 载入指定数据集的指定视频
+            if seq == 'Jogging-1' or seq == 'Jogging-2' or seq == 'Skating2-1' or seq == 'Skating2-2':  # 特殊视频处理
+                gt_path = os.path.join(dir_path, seq[:-2], 'groundtruth_rect.'+seq[-1]+'.txt')  # groundtruth单独一份
+                img_dir_path = os.path.join(dir_path, seq[:-2], 'img')  # 图片共享一份
+            elif seq == 'Human4':  # 特殊数据集
+                gt_path = os.path.join(dir_path, seq, 'groundtruth_rect.2.txt')
+                img_dir_path = os.path.join(dir_path, seq, 'img')
+            else:
+                gt_path = os.path.join(dir_path, seq, 'groundtruth_rect.txt')  # 普遍视频的groundtruth文件格式
+                img_dir_path = os.path.join(dir_path, seq, 'img')  # 普通视频的图片前缀
+            gt = pd.read_csv(gt_path, header=None, sep='[\s*\,*]+').as_matrix()  # 读入真值
 
-          data.data[seq] = Data()
-          data.data[seq].gts = gt
-          if seq == 'Board':
-            data.data[seq].frames = [os.path.join(img_dir_path, '%05d.jpg'%(i+1)) for i in range(gt.shape[0])]
-          elif seq == 'BlurCar1':
-            data.data[seq].frames = [os.path.join(img_dir_path, '%04d.jpg'%(i+247)) for i in range(gt.shape[0])]
-          elif seq == 'BlurCar3':
-            data.data[seq].frames = [os.path.join(img_dir_path, '%04d.jpg'%(i+3)) for i in range(gt.shape[0])]
-          elif seq == 'BlurCar4':
-            data.data[seq].frames = [os.path.join(img_dir_path, '%04d.jpg'%(i+18)) for i in range(gt.shape[0])]
-          else:
-            data.data[seq].frames = [os.path.join(img_dir_path, '%04d.jpg'%(i+1)) for i in range(gt.shape[0])]
+            data.data[seq] = Data()
+            data.data[seq].gts = gt  # 保存真值
+            if seq == 'Board':
+                data.data[seq].frames = [os.path.join(img_dir_path, '%05d.jpg'%(i+1)) for i in range(gt.shape[0])]
+            elif seq == 'BlurCar1':
+                data.data[seq].frames = [os.path.join(img_dir_path, '%04d.jpg'%(i+247)) for i in range(gt.shape[0])]
+            elif seq == 'BlurCar3':
+                data.data[seq].frames = [os.path.join(img_dir_path, '%04d.jpg'%(i+3)) for i in range(gt.shape[0])]
+            elif seq == 'BlurCar4':
+                data.data[seq].frames = [os.path.join(img_dir_path, '%04d.jpg'%(i+18)) for i in range(gt.shape[0])]
+            else:
+                data.data[seq].frames = [os.path.join(img_dir_path, '%04d.jpg'%(i+1)) for i in range(gt.shape[0])]
 
-          for i in range(len(data.data[seq].frames)):
-            if gt[i][2] < 1 or gt[i][3] < 1:
-              print(str(i))
-              exit(0)
+            for i in range(len(data.data[seq].frames)):
+                if gt[i][2] < 1 or gt[i][3] < 1:
+                  print(str(i))
+                  exit(0)
 
-          # test for the existence of the first frame
-          print('testing...',dataset,seq)
-          io.imread(data.data[seq].frames[0])
+            # test for the existence of the first frame
+            print('testing...',dataset,seq)
+            io.imread(data.data[seq].frames[0])
     return data
 
 def read_seq(dataset, seq):
