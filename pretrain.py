@@ -20,13 +20,13 @@ class Config(object):
     batch_neg = 96  # 负样本的数目
     num_cycle = 100  #
 
-    posPerFrame = 50
-    negPerFrame = 200
+    posPerFrame = 50  # 离线学习时每帧采集50个正样本
+    negPerFrame = 200  # 离线学习时每帧采集200个负样本
     scale_factor = 1.05
     input_size = 107
 
-    pos_range = [0.7, 1]
-    neg_range = [0, 0.5]
+    pos_range = [0.7, 1]  # 离线训练时正样本的IOU阈值
+    neg_range = [0, 0.5]  # 离线训练时负样本的IOU阈值
 
 
 # 预训练mdnet模型
@@ -78,11 +78,11 @@ def pretrain_mdnet(datasets, init_model_path, result_dir, load_path=None, shuffl
         seq_i = 0  # 记录当前轮次使用的序列数目
         for seq, seq_data in train_data.data.iteritems():
             print('### training video "'+seq+'"...')  # 训练的视频名字
-            seq_n_frames = len(seq_data.frames)  #
+            seq_n_frames = len(seq_data.frames)  # 获取该视频的总帧数
     
             ## prepare roidb
             print('- preparing roidb...')
-            seq_data.rois = proc.seq2roidb(seq_data, config)
+            seq_data.rois = proc.seq2roidb(seq_data, config)  # 处理roi
 
             ## prepare frame list
             print('- shuffle frames...')
